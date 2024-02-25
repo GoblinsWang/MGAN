@@ -1,8 +1,3 @@
-# -----------------------------------------------------------
-# "Remote Sensing Cross-Modal Text-Image Retrieval Based on Global and Local Information"
-# Yuan, Zhiqiang and Zhang, Wenkai and Changyuan Tian and Xuee, Rong and Zhengyuan Zhang and Wang, Hongqi and Fu, Kun and Sun, Xian
-# Writen by YuanZhiqiang, 2021.  Our code is depended on AMFMN
-# ------------------------------------------------------------
 import torch
 import torch.nn as nn
 import torch.nn.init
@@ -272,49 +267,6 @@ class ExtractFeature(nn.Module):
         # torch.Size([10, 768, 64, 64])
         # torch.Size([10, 512])
         return lower_feature, higher_feature, solo_feature
-
-# class VSA_Module(nn.Module):
-#     def __init__(self, opt = {}):
-#         super(VSA_Module, self).__init__()
-
-#         # extract value
-#         channel_size = opt['multiscale']['multiscale_input_channel']
-#         out_channels = opt['multiscale']['multiscale_output_channel']
-#         embed_dim = opt['embed']['embed_dim']
-
-#         # sub sample
-#         self.LF_conv = nn.Conv2d(in_channels=192, out_channels=channel_size, kernel_size=3, stride=4)
-#         self.HF_conv = nn.Conv2d(in_channels=768, out_channels=channel_size, kernel_size=1, stride=1)
-
-#         # visual attention
-#         self.conv1x1_1 = nn.Conv2d(in_channels=channel_size*2, out_channels=out_channels, kernel_size=1)
-#         self.conv1x1_2 = nn.Conv2d(in_channels=channel_size*2, out_channels=out_channels, kernel_size=1)
-
-#         # solo attention
-#         self.solo_attention = nn.Linear(in_features=256, out_features=embed_dim)
-
-#     def forward(self, lower_feature, higher_feature, solo_feature):
-
-#         # b x channel_size x 16 x 16
-#         lower_feature = self.LF_conv(lower_feature)
-#         higher_feature = self.HF_conv(higher_feature)
-
-#         # concat
-#         concat_feature = torch.cat([lower_feature, higher_feature], dim=1)
-
-#         # residual
-#         concat_feature = higher_feature.mean(dim=1,keepdim=True).expand_as(concat_feature) + concat_feature
-
-#         # attention
-#         main_feature = self.conv1x1_1(concat_feature)
-#         attn_feature = torch.sigmoid(self.conv1x1_2(concat_feature).view(concat_feature.shape[0],1,-1)).view(concat_feature.shape[0], 1, main_feature.shape[2], main_feature.shape[3])
-#         atted_feature = (main_feature*attn_feature).squeeze(dim=1).view(attn_feature.shape[0], -1)
-
-#        # solo attention
-#         solo_att = torch.sigmoid(self.solo_attention(atted_feature))
-#         solo_feature = solo_feature*solo_att
-
-#         return l2norm(solo_feature, -1)
 
 class Skipthoughts_Embedding_Module(nn.Module):
     def __init__(self, vocab, opt, out_dropout=-1):

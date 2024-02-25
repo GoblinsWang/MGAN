@@ -1,10 +1,3 @@
-#encoding:utf-8
-# -----------------------------------------------------------
-# "Remote Sensing Cross-Modal Text-Image Retrieval Based on Global and Local Information"
-# Yuan, Zhiqiang and Zhang, Wenkai and Changyuan Tian and Xuee, Rong and Zhengyuan Zhang and Wang, Hongqi and Fu, Kun and Sun, Xian
-# Writen by YuanZhiqiang, 2021.  Our code is depended on AMFMN
-# ------------------------------------------------------------
-
 import torch
 import numpy as np
 import sys
@@ -246,7 +239,7 @@ def acc_t2i(input):
 
     return (r1, r5, r10, medr, meanr), (ranks, top1)
 
-def shard_dis(images, captions, model, shard_size=64, lengths=None):
+def shard_dis(images, captions, model, shard_size=128, lengths=None):
     """compute image-caption pairwise distance during validation and test"""
 
     n_im_shard = (len(images) - 1) // shard_size + 1
@@ -329,7 +322,7 @@ def acc_t2i2(input):
 
     return (r1, r5, r10, medr, meanr), (ranks, top1)
 
-def shard_dis_reg(images, captions, model, shard_size=32, lengths=None):
+def shard_dis_reg(images, captions, model, shard_size=128, lengths=None):
     """compute image-caption pairwise distance during validation and test"""
 
     n_im_shard = (len(images) - 1) // shard_size + 1
@@ -359,7 +352,7 @@ def shard_dis_reg(images, captions, model, shard_size=32, lengths=None):
     return d
 
 
-def shard_dis_GAC(images, input_local_rep, input_local_adj, captions, model, shard_size=64, lengths=None):
+def shard_dis_MGAN(images, captions, model, shard_size=128, lengths=None):
     """compute image-caption pairwise distance during validation and test"""
 
     # if torch.cuda.device_count() == 4:
@@ -387,8 +380,6 @@ def shard_dis_GAC(images, input_local_rep, input_local_adj, captions, model, sha
             # print("cap_end :", cap_end)
             with torch.no_grad():
                 im = Variable(torch.from_numpy(images[im_start:im_end])).float().cuda()
-                local_rep = Variable(torch.from_numpy(input_local_rep[im_start:im_end])).float().cuda()
-                local_adj = Variable(torch.from_numpy(input_local_adj[im_start:im_end])).float().cuda()
 
                 s = Variable(torch.from_numpy(captions[cap_start:cap_end])).cuda()
             l = lengths[cap_start:cap_end]
@@ -396,8 +387,8 @@ def shard_dis_GAC(images, input_local_rep, input_local_adj, captions, model, sha
             t1 = time.time()
 
             # calculate simularity
-            sim = model(im, local_rep, local_adj, s, l)
-            # visual_feature, text_feature = model(im, local_rep, local_adj, s, l)
+            sim = model(im, s, l)
+            # visual_feature, text_feature = model(im, s, l)
             # sim = cosine_sim(visual_feature, text_feature)
 
             t2 = time.time()

@@ -1,5 +1,4 @@
 # coding:utf-8
-# Author:Zhiqiang Yuan
 """导入一些包"""
 import os
 import time, random

@@ -4,7 +4,7 @@ import torch.nn as nn
 import argparse
 import yaml
 import shutil
-import tensorboard_logger as tb_logger
+# import tensorboard_logger as tb_logger
 import logging
 import click
 
@@ -17,7 +17,7 @@ from vocab import deserialize_vocab
 def parser_options():
     # Hyper Parameters setting
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path_opt', default='option/SYDNEY_GAC.yaml', type=str,
+    parser.add_argument('--path_opt', default='option/SYDNEY_MGAN.yaml', type=str,
                         help='path to a yaml options file')
     # parser.add_argument('--text_sim_path', default='data/ucm_precomp/train_caps.npy', type=str,help='path to t2t sim matrix')
     opt = parser.parse_args()
@@ -30,8 +30,8 @@ def parser_options():
 
 def main(options):
     # choose model
-    if options['model']['name'] == "GAC":
-        from model import GAC as models
+    if options['model']['name'] == "MGAN":
+        from model import MGAN as models
     else:
         raise NotImplementedError
 
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     options = parser_options()
 
     # make logger
-    tb_logger.configure(options['logs']['logger_name'], flush_secs=5)
+    # tb_logger.configure(options['logs']['logger_name'], flush_secs=5)
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 
     # k_fold verify

@@ -1,10 +1,3 @@
-# encoding:utf-8
-# -----------------------------------------------------------
-# "Remote Sensing Cross-Modal Text-Image Retrieval Based on Global and Local Information"
-# Yuan, Zhiqiang and Zhang, Wenkai and Changyuan Tian and Xuee, Rong and Zhengyuan Zhang and Wang, Hongqi and Fu, Kun and Sun, Xian
-# Writen by YuanZhiqiang, 2021.  Our code is depended on AMFMN
-# ------------------------------------------------------------
-
 import os, random, copy
 import numpy as np
 import torch
@@ -22,7 +15,7 @@ import mytools
 def parser_options():
     # Hyper Parameters setting
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path_opt', default='option/RSITMD_mca/RSITMD_GAC.yaml', type=str,
+    parser.add_argument('--path_opt', default='option/RSITMD_mca/RSITMD_MGAN.yaml', type=str,
                         help='path to a yaml options file')
     opt = parser.parse_args()
 
@@ -35,8 +28,8 @@ def parser_options():
 def main(options):
 
     # choose model
-    if options['model']['name'] == "GAC":
-        from model import GAC as models
+    if options['model']['name'] == "MGAN":
+        from model import MGAN as models
     else:
         raise NotImplementedError
 

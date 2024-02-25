@@ -1,16 +1,11 @@
 #encoding:utf-8
-# -----------------------------------------------------------
-# "Remote Sensing Cross-Modal Text-Image Retrieval Based on Global and Local Information"
-# Yuan, Zhiqiang and Zhang, Wenkai and Changyuan Tian and Xuee, Rong and Zhengyuan Zhang and Wang, Hongqi and Fu, Kun and Sun, Xian
-# Writen by YuanZhiqiang, 2021.  Our code is depended on AMFMN
-# ------------------------------------------------------------
 
 import time
 import torch
 import numpy as np
 import sys
 from torch.autograd import Variable
-import tensorboard_logger as tb_logger
+# import tensorboard_logger as tb_logger
 import logging
 from torch.nn.utils.clip_grad import clip_grad_norm
 
@@ -26,7 +21,7 @@ def train(train_loader, model, optimizer, epoch, opt={}):
     loss_name = opt['model']['name'] + "_" + opt['dataset']['datatype']
     print_freq = opt['logs']['print_freq']
 
-    # switch to train mode
+    # switch to train model
     model.train()
     batch_time = utils.AverageMeter()
     data_time = utils.AverageMeter()
@@ -35,7 +30,7 @@ def train(train_loader, model, optimizer, epoch, opt={}):
     end = time.time()
     params = list(model.parameters())
     for i, train_data in enumerate(train_loader):
-        images, local_rep, local_adj, captions, lengths, ids= train_data
+        images, captions, lengths, ids= train_data
 
         batch_size = images.size(0)
         # print("batch_size : ", batch_size)
@@ -45,22 +40,16 @@ def train(train_loader, model, optimizer, epoch, opt={}):
         model.logger = train_logger
 
         input_visual = Variable(images)
-        input_local_rep = Variable(local_rep)
-        input_local_adj = Variable(local_adj)
-
         input_text = Variable(captions)
 
         if torch.cuda.is_available():
             input_visual = input_visual.cuda()
-            input_local_rep = input_local_rep.cuda()
-            input_local_adj = input_local_adj.cuda()
-
             input_text = input_text.cuda()
 
-        # visual_feature, text_feature = model(input_visual, input_local_rep, input_local_adj, input_text, lengths)
+        # visual_feature, text_feature = model(input_visual, input_text, lengths)
         # scores = cosine_sim(visual_feature, text_feature)
         # print("visual_feature shape : ", visual_feature.shape)
-        scores = model(input_visual, input_local_rep, input_local_adj, input_text, lengths)
+        scores = model(input_visual, input_text, lengths)
         # print("scores shape : ", scores.shape)
         torch.cuda.synchronize()
         loss = utils.calcul_loss(scores, input_visual.size(0), margin, max_violation=max_violation, )
@@ -82,13 +71,14 @@ def train(train_loader, model, optimizer, epoch, opt={}):
         end = time.time()
 
         if i % print_freq == 0:
-            logging.info(
-                'Epoch: [{0}][{1}/{2}]\t'
-                'Time {batch_time.val:.3f}\t'
-                '{elog}\t'
-                .format(epoch, i, len(train_loader),
-                        batch_time=batch_time,
-                        elog=str(train_logger)))
+            if i % 5 == 0:
+                logging.info(
+                    'Epoch: [{0}][{1}/{2}]\t'
+                    'Time {batch_time.val:.3f}\t'
+                    '{elog}\t'
+                    .format(epoch, i, len(train_loader),
+                            batch_time=batch_time,
+                            elog=str(train_logger)))
 
             utils.log_to_txt(
                 'Epoch: [{0}][{1}/{2}]\t'
@@ -99,10 +89,10 @@ def train(train_loader, model, optimizer, epoch, opt={}):
                             elog=str(train_logger)),
                 opt['logs']['ckpt_save_path']+ opt['model']['name'] + "_" + opt['dataset']['datatype'] +".txt"
             )
-        tb_logger.log_value('epoch', epoch)
-        tb_logger.log_value('step', i)
-        tb_logger.log_value('batch_time', batch_time.val)
-        train_logger.tb_log(tb_logger)
+        # tb_logger.log_value('epoch', epoch)
+        # tb_logger.log_value('step', i)
+        # tb_logger.log_value('batch_time', batch_time.val)
+        # train_logger.tb_log(tb_logger)
 
 def validate(val_loader, model):
 
@@ -112,30 +102,22 @@ def validate(val_loader, model):
 
     start = time.time()
     # input_visual = np.zeros((len(val_loader.dataset), 3, 256, 256))
-    input_visual = np.zeros((len(val_loader.dataset), 3, 224, 224))
-    input_local_rep = np.zeros((len(val_loader.dataset), 20, 20))
-    input_local_adj = np.zeros((len(val_loader.dataset), 20, 20))
-
+    input_visual = torch.zeros((len(val_loader.dataset), 3, 224, 224))
     input_text = np.zeros((len(val_loader.dataset), 47), dtype=np.int64)
     input_text_lengeth = [0]*len(val_loader.dataset)
     for i, val_data in enumerate(val_loader):
 
-        images, local_rep, local_adj, captions, lengths, ids = val_data
+        images, captions, lengths, ids = val_data
         
-        for (id, img,rep,adj, cap, l) in zip(ids, (images.numpy().copy()),(local_rep.numpy().copy()),(local_adj.numpy().copy()), (captions.numpy().copy()), lengths):
+        for (id, img, cap, l) in zip(ids, (images.copy()), (captions.numpy().copy()), lengths):
             input_visual[id] = img
-            input_local_rep[id] = rep
-            input_local_adj[id] = adj
-
             input_text[id, :captions.size(1)] = cap
             input_text_lengeth[id] = l
 
 
     input_visual = np.array([input_visual[i] for i in range(0, len(input_visual), 5)])
-    input_local_rep = np.array([input_local_rep[i] for i in range(0, len(input_local_rep), 5)])
-    input_local_adj = np.array([input_local_adj[i] for i in range(0, len(input_local_adj), 5)])
 
-    d = utils.shard_dis_GAC(input_visual, input_local_rep, input_local_adj, input_text, model, lengths=input_text_lengeth)
+    d = utils.shard_dis_MGAN(input_visual, input_text, model, lengths=input_text_lengeth)
 
     end = time.time()
     print("calculate similarity time:", end - start)
@@ -152,17 +134,17 @@ def validate(val_loader, model):
         r1i, r5i, r10i, medri, meanri, r1t, r5t, r10t, medrt, meanrt, currscore
     )
   
-    tb_logger.log_value('r1i', r1i)
-    tb_logger.log_value('r5i', r5i)
-    tb_logger.log_value('r10i', r10i)
-    tb_logger.log_value('medri', medri)
-    tb_logger.log_value('meanri', meanri)
-    tb_logger.log_value('r1t', r1t)
-    tb_logger.log_value('r5t', r5t)
-    tb_logger.log_value('r10t', r10t)
-    tb_logger.log_value('medrt', medrt)
-    tb_logger.log_value('meanrt', meanrt)
-    tb_logger.log_value('rsum', currscore)
+    # tb_logger.log_value('r1i', r1i)
+    # tb_logger.log_value('r5i', r5i)
+    # tb_logger.log_value('r10i', r10i)
+    # tb_logger.log_value('medri', medri)
+    # tb_logger.log_value('meanri', meanri)
+    # tb_logger.log_value('r1t', r1t)
+    # tb_logger.log_value('r5t', r5t)
+    # tb_logger.log_value('r10t', r10t)
+    # tb_logger.log_value('medrt', medrt)
+    # tb_logger.log_value('meanrt', meanrt)
+    # tb_logger.log_value('rsum', currscore)
 
     return currscore, all_score
 
@@ -175,8 +157,6 @@ def validate_test(val_loader, model):
     start = time.time()
     # input_visual = np.zeros((len(val_loader.dataset), 3, 256, 256))
     input_visual = np.zeros((len(val_loader.dataset), 3, 224, 224))
-    input_local_rep = np.zeros((len(val_loader.dataset), 20, 20))
-    input_local_adj = np.zeros((len(val_loader.dataset), 20, 20))
 
     input_text = np.zeros((len(val_loader.dataset), 47), dtype=np.int64)
     input_text_lengeth = [0] * len(val_loader.dataset)
@@ -184,24 +164,20 @@ def validate_test(val_loader, model):
     embed_start = time.time()
     for i, val_data in enumerate(val_loader):
 
-        images,local_rep, local_adj, captions, lengths, ids = val_data
+        images, captions, lengths, ids = val_data
 
 
-        for (id, img,rep,adj, cap, l) in zip(ids, (images.numpy().copy()),(local_rep.numpy().copy()),(local_adj.numpy().copy()), (captions.numpy().copy()), lengths):
+        for (id, img, cap, l) in zip(ids, (images.numpy().copy()), (captions.numpy().copy()), lengths):
             input_visual[id] = img
-            input_local_rep[id] = rep
-            input_local_adj[id] = adj
 
             input_text[id, :captions.size(1)] = cap
             input_text_lengeth[id] = l
 
     input_visual = np.array([input_visual[i] for i in range(0, len(input_visual), 5)])
-    input_local_rep = np.array([input_local_rep[i] for i in range(0, len(input_local_rep), 5)])
-    input_local_adj = np.array([input_local_adj[i] for i in range(0, len(input_local_adj), 5)])
     embed_end = time.time()
     print("embedding time: {}".format(embed_end-embed_start))
 
-    d = utils.shard_dis_GAC(input_visual, input_local_rep, input_local_adj, input_text, model, lengths=input_text_lengeth)
+    d = utils.shard_dis_MGAN(input_visual, input_text, model, lengths=input_text_lengeth)
 
     end = time.time()
     print("calculate similarity time:", end - start)

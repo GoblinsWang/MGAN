@@ -1,9 +1,3 @@
-# -----------------------------------------------------------
-# "Remote Sensing Cross-Modal Text-Image Retrieval Based on Global and Local Information"
-# Yuan, Zhiqiang and Zhang, Wenkai and Changyuan Tian and Xuee, Rong and Zhengyuan Zhang and Wang, Hongqi and Fu, Kun and Sun, Xian
-# Writen by YuanZhiqiang, 2021.  Our code is depended on AMFMN
-# ------------------------------------------------------------
-
 import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
@@ -29,46 +23,27 @@ class PrecompDataset(data.Dataset):
         # Captions
         self.captions = []
         self.maxlength = 0
-
-        # local features
-        local_features = utils.load_from_npy(opt['dataset']['local_path'])[()]
-
+        self.image_paths = []
         if data_split != 'test':
             with open(self.loc+'%s_caps_verify.txt' % data_split, 'rb') as f:
                 for line in f:
                     self.captions.append(line.strip())
 
-            self.images = []
-            self.local_adj = []
-            self.local_rep = []
             with open(self.loc + '%s_filename_verify.txt' % data_split, 'rb') as f:
                 for line in f:
-                    # local append
-                    filename = str(line.strip())[2:-1].split(".")[0] + ".txt"
-                    self.local_adj.append(np.array(local_features['adj_matrix'][filename]))
-                    self.local_rep.append(np.array(local_features['local_rep'][filename]))
-
-                    self.images.append(line.strip())
+                    self.image_paths.append(line.strip())
         else:
             with open(self.loc + '%s_caps.txt' % data_split, 'rb') as f:
                 for line in f:
                     self.captions.append(line.strip())
 
-            self.images = []
-            self.local_adj = []
-            self.local_rep = []
             with open(self.loc + '%s_filename.txt' % data_split, 'rb') as f:
                 for line in f:
-                    # local append
-                    filename = str(line.strip())[2:-1].split(".")[0] + ".txt"
-                    self.local_adj.append(np.array(local_features['adj_matrix'][filename]))
-                    self.local_rep.append(np.array(local_features['local_rep'][filename]))
-
-                    self.images.append(line.strip())
+                    self.image_paths.append(line.strip())
 
         self.length = len(self.captions)
         # rkiros data has redundancy in images, we divide by 5, 10crop doesn't
-        if len(self.images) != self.length:
+        if len(self.image_paths) != self.length:
             self.im_div = 5
         else:
             self.im_div = 1
@@ -90,6 +65,14 @@ class PrecompDataset(data.Dataset):
                 transforms.ToTensor(),
                 transforms.Normalize((0.485, 0.456, 0.406),
                                      (0.229, 0.224, 0.225))])
+        # 将数据直接放到cuda上，并提前预处理
+        self.images = []
+        for index in range(len(self.image_paths)):
+            image = Image.open(self.img_path  +str(self.image_paths[index])[2:-1]).convert('RGB')
+            image = self.transform(image)  # torch.Size([3, 256, 256])
+            self.images.append(image)
+        # self.images = torch.stack(self.images, dim=0)
+        # self.images = self.images.cuda()
 
     def __getitem__(self, index):
         # handle the image redundancy
@@ -110,15 +93,12 @@ class PrecompDataset(data.Dataset):
         caption.extend([vocab(token) for token in tokens_UNK])
         caption = torch.LongTensor(caption)
 
-        image = Image.open(self.img_path  +str(self.images[img_id])[2:-1]).convert('RGB')
-        image = self.transform(image)  # torch.Size([3, 256, 256])
-
-        # local
-        local_rep =  torch.from_numpy(self.local_rep[img_id]).type(torch.float32)
-        local_adj = torch.from_numpy(self.local_adj[img_id]).type(torch.float32)
+        # image = Image.open(self.img_path  +str(self.images[img_id])[2:-1]).convert('RGB')
+        # image = self.transform(image)  # torch.Size([3, 256, 256])
+        image = self.images[img_id]
 
 
-        return image, local_rep, local_adj, caption, tokens_UNK, index, img_id
+        return image, caption, tokens_UNK, index, img_id
 
     def __len__(self):
         return self.length
@@ -127,14 +107,11 @@ class PrecompDataset(data.Dataset):
 def collate_fn(data):
 
     # Sort a data list by caption length
-    data.sort(key=lambda x: len(x[4]), reverse=True)
-    images, local_rep, local_adj, captions, tokens, ids, img_ids = zip(*data)
+    data.sort(key=lambda x: len(x[2]), reverse=True)
+    images, captions, tokens, ids, img_ids = zip(*data)
 
     # Merge images (convert tuple of 3D tensor to 4D tensor)
     images = torch.stack(images, 0)
-
-    local_rep = torch.stack(local_rep, 0)
-    local_adj = torch.stack(local_adj, 0)
 
     # Merget captions (convert tuple of 1D tensor to 2D tensor)
     lengths = [len(cap) for cap in captions]
@@ -145,7 +122,7 @@ def collate_fn(data):
 
     lengths = [l if l !=0 else 1 for l in lengths]
 
-    return images, local_rep, local_adj, targets, lengths, ids
+    return images, targets, lengths, ids
 
 
 def get_precomp_loader(data_split, vocab, batch_size=100,
@@ -156,7 +133,7 @@ def get_precomp_loader(data_split, vocab, batch_size=100,
     data_loader = torch.utils.data.DataLoader(dataset=dset,
                                               batch_size=batch_size,
                                               shuffle=shuffle,
-                                              pin_memory=False,
+                                              pin_memory=True,
                                               collate_fn=collate_fn,
                                               num_workers=num_workers)
     return data_loader

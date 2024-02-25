@@ -215,7 +215,7 @@ def pvig_ti_224_gelu(pretrained=False, **kwargs):
     model = DeepGCN(opt)
     model.default_cfg = default_cfgs['vig_224_gelu']
     # 加载预训练模型
-    state_dict = torch.load('/home/wzm/crossmodal/MGAN/model/pvig_ti_78.5.pth.tar')
+    state_dict = torch.load('/mydata/crossmodal/MGAN/model/pvig_ti_78.5.pth.tar')
     model.load_state_dict(state_dict, strict=False)
 
     # model.backbone[2].add_module('GAT', GAT(GATopt(96, 1)))

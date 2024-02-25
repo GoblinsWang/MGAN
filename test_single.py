@@ -1,10 +1,3 @@
-# encoding:utf-8
-# -----------------------------------------------------------
-# "Remote Sensing Cross-Modal Text-Image Retrieval Based on Global and Local Information"
-# Yuan, Zhiqiang and Zhang, Wenkai and Changyuan Tian and Xuee, Rong and Zhengyuan Zhang and Wang, Hongqi and Fu, Kun and Sun, Xian
-# Writen by YuanZhiqiang, 2021.  Our code is depended on AMFMN
-# ------------------------------------------------------------
-
 import os, random, copy
 import numpy as np
 import torch
@@ -12,7 +5,7 @@ import torch.nn as nn
 import argparse
 import yaml
 import shutil
-import tensorboard_logger as tb_logger
+# import tensorboard_logger as tb_logger
 import logging
 import click
 
@@ -26,9 +19,9 @@ from vocab import deserialize_vocab
 def parser_options():
     # Hyper Parameters setting
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path_opt', default='option/RSICD_mca/RSICD_GAC_mca.yaml', type=str,
+    parser.add_argument('--path_opt', default='option/RSICD/RSICD_MGAN.yaml', type=str,
                         help='path to a yaml options file')
-    parser.add_argument('--resume', default='checkpoint/rsicd_GAC_mca_SGA_DYNAMIC/2/GAC_mca_best.pth.tar', type=str,
+    parser.add_argument('--resume', default='checkpoint/rsicd_MGAN_mca_SGA_DYNAMIC/2/MGAN_mca_best.pth.tar', type=str,
                         help='path to a yaml options file')
     opt = parser.parse_args()
 
@@ -42,10 +35,8 @@ def parser_options():
 
 def main(options):
     # choose model
-    if options['model']['name'] == "GAC":
-        from model import GAC as models
-    elif options['model']['name'] == "GAC_mca":
-        from model import GAC_mca as models
+    if options['model']['name'] == "MGAN":
+        from model import MGAN as models
     else:
         raise NotImplementedError
 
